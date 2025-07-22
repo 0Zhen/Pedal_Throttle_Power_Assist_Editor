@@ -1,0 +1,1164 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pedal & Throttle Power Assist Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', Arial, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: white;
+            min-height: 100vh;
+        }
+        
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        
+        .title {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 32px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tab-container {
+            display: flex;
+            margin-bottom: 30px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 5px;
+        }
+        
+        .tab-button {
+            flex: 1;
+            padding: 15px 30px;
+            background: transparent;
+            border: none;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .tab-button.active {
+            background: linear-gradient(45deg, #00c9ff, #92fe9d);
+            color: #333;
+            transform: scale(1.05);
+        }
+        
+        .tab-button:hover:not(.active) {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .chart-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .chart-container {
+            position: relative;
+            height: 500px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .controls-section {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+        }
+        
+        .level-group {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            border-left: 4px solid;
+        }
+        
+        .level-group.level1 { border-left-color: #007bff; }
+        .level-group.level2 { border-left-color: #ffc107; }
+        .level-group.level3 { border-left-color: #dc3545; }
+        
+        .level-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .level-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .level1 .level-indicator { background: #007bff; }
+        .level2 .level-indicator { background: #ffc107; }
+        .level3 .level-indicator { background: #dc3545; }
+        
+        .point-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        
+        .point-control {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .point-control label {
+            font-size: 12px;
+            margin-bottom: 5px;
+            opacity: 0.8;
+        }
+        
+        .point-control input {
+            width: 60px;
+            padding: 5px;
+            border: none;
+            border-radius: 4px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .calculated-params {
+            background: rgba(0, 255, 150, 0.1);
+            border: 1px solid rgba(0, 255, 150, 0.3);
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 20px;
+        }
+        
+        .calculated-params h3 {
+            color: #00ff96;
+            margin-top: 0;
+            margin-bottom: 15px;
+        }
+        
+        .param-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .preset-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .preset-btn {
+            background: linear-gradient(45deg, #00c9ff, #92fe9d);
+            color: #333;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            flex: 1;
+            min-width: 120px;
+        }
+        
+        .preset-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 201, 255, 0.4);
+        }
+        
+        .preset-btn.active {
+            background: linear-gradient(45deg, #ff9a9e, #fecfef);
+            transform: scale(1.05);
+        }
+        
+        .apply-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #56ab2f, #a8e6cf);
+            border: none;
+            border-radius: 10px;
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-top: 20px;
+        }
+        
+        .apply-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(86, 171, 47, 0.4);
+        }
+        
+        .drag-hint {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #333;
+            padding: 8px 12px;
+            border-radius: 15px;
+            font-size: 12px;
+            font-weight: bold;
+            z-index: 1000;
+        }
+        
+        .mode-info {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">🚴‍♂️ Pedal & Throttle Power Assist Editor</h1>
+        
+        <div class="tab-container">
+            <button class="tab-button active" onclick="switchTab('pedal')">
+                🦵 Pedal Assist
+                <small style="font-size: 12px;">(Pedal Power → Motor Output)</small>
+            </button>
+            <button class="tab-button" onclick="switchTab('throttle')">
+                🎛️ Throttle Progressive
+                <small style="font-size: 12px;">(Raw → Processed Position)</small>
+            </button>
+        </div>
+        
+        <!-- Pedal Assist 頁籤 -->
+        <div id="pedal-tab" class="tab-content active">
+            <div class="mode-info">
+                <strong>Pedal Assist Mode:</strong> Pedal input power (W) corresponds to motor output power (W)
+            </div>
+            
+            <div class="main-content">
+                <div class="chart-section">
+                    <div class="drag-hint">Drag points to adjust curves</div>
+                    <div class="chart-container">
+                        <canvas id="pedalChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
+                    <div class="calculated-params">
+                        <h3>📊 Calculated Segment Slopes</h3>
+                        <div id="pedal-calculated-slopes"></div>
+                    </div>
+                    
+                    <div class="calculated-params">
+                        <h3>⚙️ Bike Parameters</h3>
+                        <div id="pedal-bike-params"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Throttle Progressive 頁籤 -->
+        <div id="throttle-tab" class="tab-content">
+            <div class="mode-info">
+                <strong>Throttle Progressive Mode:</strong> Raw throttle position (%) corresponds to processed throttle position (%)
+            </div>
+            
+            <div class="main-content">
+                <div class="chart-section">
+                    <div class="drag-hint">Drag points to adjust curves</div>
+                    <div class="chart-container">
+                        <canvas id="throttleChart"></canvas>
+                    </div>
+                </div>
+                
+                <div class="controls-section">
+                    <div class="level-group level1">
+                        <div class="level-title">
+                            <div class="level-indicator"></div>
+                            Level 1 Multiplier
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="level1-multiplier" min="0" max="100" value="50" 
+                                   style="flex: 1;" onchange="updateMultiplier('level1', this.value)">
+                            <span id="level1-value" style="min-width: 40px; font-weight: bold;">50%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="level-group level2">
+                        <div class="level-title">
+                            <div class="level-indicator"></div>
+                            Level 2 Multiplier
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="level2-multiplier" min="0" max="100" value="75" 
+                                   style="flex: 1;" onchange="updateMultiplier('level2', this.value)">
+                            <span id="level2-value" style="min-width: 40px; font-weight: bold;">75%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="level-group level3">
+                        <div class="level-title">
+                            <div class="level-indicator"></div>
+                            Level 3 Multiplier
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="range" id="level3-multiplier" min="0" max="100" value="100" 
+                                   style="flex: 1;" onchange="updateMultiplier('level3', this.value)">
+                            <span id="level3-value" style="min-width: 40px; font-weight: bold;">100%</span>
+                        </div>
+                    </div>
+                    
+                    <div class="calculated-params">
+                        <h3>📊 Calculated Segment Slopes</h3>
+                        <div id="throttle-calculated-slopes"></div>
+                    </div>
+                    
+                    <div class="calculated-params">
+                        <h3>⚙️ Bike Parameters</h3>
+                        <div id="throttle-bike-params"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let pedalChart, throttleChart;
+        let isDragging = false;
+        let dragInfo = null;
+        let currentTab = 'pedal';
+        
+        // Pedal數據 - 腳踩功率(W) 對應 馬達輸出功率(W) - 改成3個點
+        let pedalCurves = {
+            level1: [
+                {x: 100, y: 50},   // 100W踩踏 -> 50W輸出
+                {x: 200, y: 120},  // 200W踩踏 -> 120W輸出
+                {x: 300, y: 200}   // 300W踩踏 -> 200W輸出
+            ],
+            level2: [
+                {x: 100, y: 80},   // 100W踩踏 -> 80W輸出
+                {x: 200, y: 200},  // 200W踩踏 -> 200W輸出
+                {x: 300, y: 350}   // 300W踩踏 -> 350W輸出
+            ],
+            level3: [
+                {x: 100, y: 120},  // 100W踩踏 -> 120W輸出
+                {x: 200, y: 300},  // 200W踩踏 -> 300W輸出
+                {x: 300, y: 500}   // 300W踩踏 -> 500W輸出
+            ]
+        };
+        
+        // Throttle數據 - 節流位置(%) 對應 電流百分比(%) - 第一個segment斜率固定為0，最後一點Y值固定為100
+        let throttleCurves = {
+            level1: [
+                {x: 25, y: 0},   // 第一個點固定y=0
+                {x: 50, y: 40},
+                {x: 70, y: 80},
+                {x: 80, y: 100}  // 最後一點固定y=100
+            ],
+            level2: [
+                {x: 25, y: 0},   // 第一個點固定y=0
+                {x: 50, y: 30},
+                {x: 70, y: 60},
+                {x: 80, y: 100}  // 最後一點固定y=100
+            ],
+            level3: [
+                {x: 25, y: 0},   // 第一個點固定y=0
+                {x: 50, y: 13},
+                {x: 70, y: 42},
+                {x: 80, y: 100}  // 最後一點固定y=100
+            ]
+        };
+        
+        // 頁籤切換
+        function switchTab(tabName) {
+            // 更新按鈕狀態
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[onclick="switchTab('${tabName}')"]`).classList.add('active');
+            
+            // 更新內容顯示
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+            
+            currentTab = tabName;
+            
+            // 更新對應的圖表
+            if (tabName === 'pedal') {
+                setTimeout(() => updatePedalChart(), 100);
+            } else {
+                setTimeout(() => updateThrottleChart(), 100);
+            }
+        }
+        
+        // 計算分段斜率 - 改為整數顯示
+        function calculateSlopes(points) {
+            const slopes = [];
+            let prevX = 0, prevY = 0;
+            
+            for (let i = 0; i < points.length; i++) {
+                const currentX = points[i].x;
+                const currentY = points[i].y;
+                
+                if (currentX > prevX) {
+                    const slope = ((currentY - prevY) / (currentX - prevX)) * 100;
+                    slopes.push({
+                        segment: i + 1,
+                        range: `${Math.round(prevX)} - ${Math.round(currentX)}`,
+                        slope: Math.round(slope) // 改為整數
+                    });
+                }
+                
+                prevX = currentX;
+                prevY = currentY;
+            }
+            
+            return slopes;
+        }
+        
+        // 生成直線連接數據，最後一點延伸水平線，應用乘數
+        function generateLinearCurve(points, level = null) {
+            const linearData = [];
+            
+            // 從原點開始
+            linearData.push({x: 0, y: 0});
+            
+            // 添加控制點，直線連接
+            points.forEach(point => {
+                let yValue = point.y;
+                
+                // 如果是Throttle模式且有指定level，應用乘數
+                if (currentTab === 'throttle' && level && window.throttleLevelMultipliers) {
+                    yValue = point.y * window.throttleLevelMultipliers[level] / 100;
+                }
+                
+                linearData.push({x: point.x, y: yValue});
+            });
+            
+            // 在最後一點加入往右延伸的水平線
+            if (points.length > 0) {
+                const lastPoint = points[points.length - 1];
+                const maxX = currentTab === 'pedal' ? 400 : 100;
+                if (lastPoint.x < maxX) {
+                    let lastY = lastPoint.y;
+                    
+                    // 應用乘數到延伸線
+                    if (currentTab === 'throttle' && level && window.throttleLevelMultipliers) {
+                        lastY = lastPoint.y * window.throttleLevelMultipliers[level] / 100;
+                    }
+                    
+                    linearData.push({x: maxX, y: lastY});
+                }
+            }
+            
+            return linearData;
+        }
+        
+        // 更新乘數
+        function updateMultiplier(level, value) {
+            if (!window.throttleLevelMultipliers) {
+                window.throttleLevelMultipliers = {level1: 50, level2: 75, level3: 100};
+            }
+            window.throttleLevelMultipliers[level] = parseInt(value);
+            document.getElementById(`${level}-value`).textContent = value + '%';
+            
+            // 更新圖表
+            if (currentTab === 'throttle') {
+                updateThrottleChart();
+            }
+        }
+        
+        // 更新Pedal圖表
+        function updatePedalChart() {
+            if (!pedalChart) return;
+            
+            const datasets = [
+                {
+                    label: 'Level 1',
+                    data: generateLinearCurve(pedalCurves.level1),
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0, // 設為0使用直線連接
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                },
+                {
+                    label: 'Level 2',
+                    data: generateLinearCurve(pedalCurves.level2),
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                },
+                {
+                    label: 'Level 3',
+                    data: generateLinearCurve(pedalCurves.level3),
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                }
+            ];
+            
+            // 添加可拖拽的控制點
+            Object.keys(pedalCurves).forEach((level, levelIndex) => {
+                const colors = ['#007bff', '#ffc107', '#dc3545'];
+                pedalCurves[level].forEach((point, pointIndex) => {
+                    datasets.push({
+                        label: `pedal_${level}_point_${pointIndex}`,
+                        data: [point],
+                        borderColor: colors[levelIndex],
+                        backgroundColor: colors[levelIndex],
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 12,
+                        showLine: false,
+                        pointStyle: 'circle'
+                    });
+                });
+            });
+            
+            pedalChart.data.datasets = datasets;
+            pedalChart.update('none');
+            
+            updatePedalCalculatedParams();
+        }
+        
+        // 更新Throttle圖表
+        function updateThrottleChart() {
+            if (!throttleChart) return;
+            
+            const datasets = [
+                {
+                    label: 'Level 1',
+                    data: generateLinearCurve(throttleCurves.level1, 'level1'),
+                    borderColor: '#007bff',
+                    backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0, // 直線連接
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                },
+                {
+                    label: 'Level 2',
+                    data: generateLinearCurve(throttleCurves.level2, 'level2'),
+                    borderColor: '#ffc107',
+                    backgroundColor: 'rgba(255, 193, 7, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                },
+                {
+                    label: 'Level 3',
+                    data: generateLinearCurve(throttleCurves.level3, 'level3'),
+                    borderColor: '#dc3545',
+                    backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                    borderWidth: 3,
+                    fill: false,
+                    tension: 0,
+                    pointRadius: 0,
+                    pointHoverRadius: 0
+                }
+            ];
+            
+            // 添加可拖拽的控制點（顯示原始位置）
+            Object.keys(throttleCurves).forEach((level, levelIndex) => {
+                const colors = ['#007bff', '#ffc107', '#dc3545'];
+                throttleCurves[level].forEach((point, pointIndex) => {
+                    // 控制點顯示應用乘數後的位置
+                    const multiplier = window.throttleLevelMultipliers ? window.throttleLevelMultipliers[level] : 100;
+                    const adjustedY = point.y * multiplier / 100;
+                    datasets.push({
+                        label: `throttle_${level}_point_${pointIndex}`,
+                        data: [{x: point.x, y: adjustedY}],
+                        borderColor: colors[levelIndex],
+                        backgroundColor: colors[levelIndex],
+                        borderWidth: 2,
+                        pointRadius: 8,
+                        pointHoverRadius: 12,
+                        showLine: false,
+                        pointStyle: 'circle'
+                    });
+                });
+            });
+            
+            throttleChart.data.datasets = datasets;
+            throttleChart.update('none');
+            
+            updateThrottleCalculatedParams();
+        }
+        
+        // 更新Pedal輸入框數值 - 移除此函數，因為不再需要
+        // function updatePedalInputValues() { ... }
+        
+        // 更新Throttle輸入框數值 - 移除此函數，因為不再需要
+        // function updateThrottleInputValues() { ... }
+        
+        // 更新Pedal計算參數
+        function updatePedalCalculatedParams() {
+            const container = document.getElementById('pedal-calculated-slopes');
+            container.innerHTML = '';
+            
+            Object.keys(pedalCurves).forEach(level => {
+                const slopes = calculateSlopes(pedalCurves[level]);
+                const levelDiv = document.createElement('div');
+                const levelColors = {level1: '#007bff', level2: '#ffc107', level3: '#dc3545'};
+                
+                levelDiv.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 8px; color: ${levelColors[level]}">
+                        ${level.toUpperCase()}:
+                    </div>
+                `;
+                
+                slopes.forEach(slope => {
+                    levelDiv.innerHTML += `
+                        <div class="param-row">
+                            <span>Segment ${slope.segment}: ${slope.range}W</span>
+                            <span>Slope: ${slope.slope}%</span>
+                        </div>
+                    `;
+                });
+                
+                levelDiv.innerHTML += '<br>';
+                container.appendChild(levelDiv);
+            });
+            
+            updatePedalBikeParams();
+        }
+        
+        // 更新Pedal Bike參數
+        function updatePedalBikeParams() {
+            const container = document.getElementById('pedal-bike-params');
+            container.innerHTML = '';
+            
+            Object.keys(pedalCurves).forEach(level => {
+                const slopes = calculateSlopes(pedalCurves[level]);
+                const curve = pedalCurves[level];
+                const levelColors = {level1: '#007bff', level2: '#ffc107', level3: '#dc3545'};
+                const levelNum = level.replace('level', '');
+                
+                const levelDiv = document.createElement('div');
+                levelDiv.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 8px; color: ${levelColors[level]}">
+                        Level ${levelNum} Parameters:
+                    </div>
+                `;
+                
+                // 輸出各個參數 - Assist Ratio單位0.1，斜率除以10
+                slopes.forEach((slope, index) => {
+                    const assistRatioName = ['First', 'Second', 'Third'][index];
+                    if (assistRatioName) {
+                        const assistRatioValue = Math.round(slope.slope / 10); // 斜率除以10，四捨五入到整數
+                        levelDiv.innerHTML += `
+                            <div class="param-row">
+                                <span>Level ${levelNum} ${assistRatioName} Assist Ratio</span>
+                                <span>${assistRatioValue}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                // Power Points (只顯示前兩個控制點) - 單位10W，除以10
+                curve.forEach((point, index) => {
+                    if (index < 2) { // 只顯示First和Second Power Point
+                        const powerPointName = ['First', 'Second'][index];
+                        const powerPointValue = Math.round(point.x / 10); // 功率除以10
+                        levelDiv.innerHTML += `
+                            <div class="param-row">
+                                <span>Level ${levelNum} ${powerPointName} Power Point</span>
+                                <span>${powerPointValue}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                // Power Limit (最後一點的Y值) - 單位10W，除以10
+                const lastPoint = curve[curve.length - 1];
+                const powerLimitValue = Math.round(lastPoint.y / 10); // 功率除以10
+                levelDiv.innerHTML += `
+                    <div class="param-row">
+                        <span>Level ${levelNum} Power Limit</span>
+                        <span>${powerLimitValue}</span>
+                    </div>
+                `;
+                
+                levelDiv.innerHTML += '<br>';
+                container.appendChild(levelDiv);
+            });
+        }
+        
+        // 更新Throttle計算參數（考慮乘數）
+        function updateThrottleCalculatedParams() {
+            const container = document.getElementById('throttle-calculated-slopes');
+            container.innerHTML = '';
+            
+            Object.keys(throttleCurves).forEach(level => {
+                // 創建調整後的點（應用乘數）
+                const multiplier = window.throttleLevelMultipliers ? window.throttleLevelMultipliers[level] : 100;
+                const adjustedPoints = throttleCurves[level].map(point => ({
+                    x: point.x,
+                    y: point.y * multiplier / 100
+                }));
+                
+                const slopes = calculateSlopes(adjustedPoints);
+                const levelDiv = document.createElement('div');
+                const levelColors = {level1: '#007bff', level2: '#ffc107', level3: '#dc3545'};
+                
+                levelDiv.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 8px; color: ${levelColors[level]}">
+                        ${level.toUpperCase()} (×${multiplier}%):
+                    </div>
+                `;
+                
+                slopes.forEach(slope => {
+                    levelDiv.innerHTML += `
+                        <div class="param-row">
+                            <span>Segment ${slope.segment}: ${slope.range}%</span>
+                            <span>Slope: ${slope.slope}%</span>
+                        </div>
+                    `;
+                });
+                
+                levelDiv.innerHTML += '<br>';
+                container.appendChild(levelDiv);
+            });
+            
+            updateThrottleBikeParams();
+        }
+        
+        // 更新Throttle Bike參數
+        function updateThrottleBikeParams() {
+            const container = document.getElementById('throttle-bike-params');
+            container.innerHTML = '';
+            
+            Object.keys(throttleCurves).forEach(level => {
+                const multiplier = window.throttleLevelMultipliers ? window.throttleLevelMultipliers[level] : 100;
+                const adjustedPoints = throttleCurves[level].map(point => ({
+                    x: point.x,
+                    y: point.y * multiplier / 100
+                }));
+                
+                const slopes = calculateSlopes(adjustedPoints);
+                const curve = throttleCurves[level];
+                const levelColors = {level1: '#007bff', level2: '#ffc107', level3: '#dc3545'};
+                const levelNum = level.replace('level', '');
+                
+                const levelDiv = document.createElement('div');
+                levelDiv.innerHTML = `
+                    <div style="font-weight: bold; margin-bottom: 8px; color: ${levelColors[level]}">
+                        Level ${levelNum} Parameters:
+                    </div>
+                `;
+                
+                // Throttle Current Slopes (跳過第一個，因為固定為0) - 單位0.1，斜率除以10
+                slopes.forEach((slope, index) => {
+                    if (index > 0) { // 跳過第一個斜率（固定為0）
+                        const slopeName = ['First', 'Second', 'Third'][index - 1]; // 重新編號
+                        const slopeValue = Math.round(slope.slope / 10); // 斜率除以10，四捨五入到整數
+                        levelDiv.innerHTML += `
+                            <div class="param-row">
+                                <span>Level ${levelNum} ${slopeName} Throttle Current Slope</span>
+                                <span>${slopeValue}</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                // Throttle Positions (控制點的X值)
+                curve.forEach((point, index) => {
+                    const positionName = ['First', 'Second', 'Third', 'Fourth'][index];
+                    if (positionName) {
+                        levelDiv.innerHTML += `
+                            <div class="param-row">
+                                <span>Level ${levelNum} ${positionName} Throttle Position</span>
+                                <span>${Math.round(point.x)}%</span>
+                            </div>
+                        `;
+                    }
+                });
+                
+                // Throttle Position Limitation (乘數值)
+                levelDiv.innerHTML += `
+                    <div class="param-row">
+                        <span>Level ${levelNum} Throttle Position Limitation</span>
+                        <span>${multiplier}%</span>
+                    </div>
+                `;
+                
+                levelDiv.innerHTML += '<br>';
+                container.appendChild(levelDiv);
+            });
+        }
+        
+        // 載入Pedal預設 - 移除此函數
+        // function loadPedalPreset(level) { ... }
+        
+        // 載入Throttle預設 - 移除此函數  
+        // function loadThrottlePreset(level) { ... }
+        
+        // 設置拖拽處理器
+        function setupDragHandlers(chart, curves, isThrottle = false) {
+            chart.canvas.addEventListener('mousedown', (e) => {
+                const points = Chart.helpers.getRelativePosition(e, chart);
+                const dataX = chart.scales.x.getValueForPixel(points.x);
+                const dataY = chart.scales.y.getValueForPixel(points.y);
+                
+                // 檢查是否點擊到控制點
+                Object.keys(curves).forEach(level => {
+                    curves[level].forEach((point, index) => {
+                        let checkX = point.x;
+                        let checkY = point.y;
+                        
+                        // 如果是Throttle，需要考慮乘數對Y值的影響來檢測
+                        if (isThrottle && window.throttleLevelMultipliers) {
+                            checkY = point.y * window.throttleLevelMultipliers[level] / 100;
+                        }
+                        
+                        const distance = Math.sqrt(
+                            Math.pow(dataX - checkX, 2) + Math.pow(dataY - checkY, 2)
+                        );
+                        
+                        if (distance < (isThrottle ? 8 : 20)) { // 增加Throttle的檢測範圍
+                            if (isThrottle) {
+                                // 如果是第一個點，只能調X值，Y固定為0
+                                if (index === 0) {
+                                    isDragging = true;
+                                    dragInfo = { level, index, isThrottle, firstPointOnly: true };
+                                }
+                                // 如果是最後一個點，只能調X值，Y固定為100
+                                else if (index === curves[level].length - 1) {
+                                    isDragging = true;
+                                    dragInfo = { level, index, isThrottle, lastPointOnly: true };
+                                }
+                                // 其他點可以自由調整
+                                else {
+                                    isDragging = true;
+                                    dragInfo = { level, index, isThrottle, firstPointOnly: false, lastPointOnly: false };
+                                }
+                            } else {
+                                isDragging = true;
+                                dragInfo = { level, index, isThrottle, firstPointOnly: false, lastPointOnly: false };
+                            }
+                            chart.canvas.style.cursor = 'grabbing';
+                        }
+                    });
+                });
+            });
+            
+            chart.canvas.addEventListener('mousemove', (e) => {
+                if (isDragging && dragInfo && dragInfo.isThrottle === isThrottle) {
+                    const points = Chart.helpers.getRelativePosition(e, chart);
+                    const dataX = chart.scales.x.getValueForPixel(points.x);
+                    const dataY = chart.scales.y.getValueForPixel(points.y);
+                    
+                    // 根據模式設定不同的拖拽範圍
+                    let clampedX, clampedY;
+                    if (isThrottle) {
+                        // 基本範圍限制
+                        clampedX = Math.max(5, Math.min(95, dataX));
+                        
+                        // 對於Y值，需要考慮乘數的逆運算
+                        let rawY = Math.max(0, Math.min(110, dataY));
+                        if (window.throttleLevelMultipliers && window.throttleLevelMultipliers[dragInfo.level]) {
+                            // 將顯示的Y值轉換回原始Y值
+                            rawY = rawY * 100 / window.throttleLevelMultipliers[dragInfo.level];
+                        }
+                        clampedY = Math.max(0, Math.min(100, rawY));
+                        
+                        // 如果是第一個點，固定Y值為0
+                        if (dragInfo.firstPointOnly) {
+                            clampedY = 0;
+                        }
+                        // 如果是最後一個點，固定Y值為100
+                        else if (dragInfo.lastPointOnly) {
+                            clampedY = 100;
+                        }
+                        
+                        // 添加X值的順序限制：確保後一個點的X值大於前一個點
+                        const currentCurve = curves[dragInfo.level];
+                        const currentIndex = dragInfo.index;
+                        
+                        // 設定前一個點和後一個點的X值限制
+                        let minX = 5;  // 預設最小值
+                        let maxX = 95; // 預設最大值
+                        
+                        // 如果不是第一個點，X值必須大於前一個點
+                        if (currentIndex > 0) {
+                            minX = Math.max(minX, currentCurve[currentIndex - 1].x + 1);
+                        }
+                        
+                        // 如果不是最後一個點，X值必須小於後一個點
+                        if (currentIndex < currentCurve.length - 1) {
+                            maxX = Math.min(maxX, currentCurve[currentIndex + 1].x - 1);
+                        }
+                        
+                        // 應用順序限制
+                        clampedX = Math.max(minX, Math.min(maxX, clampedX));
+                        
+                    } else {
+                        clampedX = Math.max(10, Math.min(400, dataX));
+                        clampedY = Math.max(0, Math.min(800, dataY));
+                    }
+                    
+                    // 更新點的位置（使用原始座標系統）
+                    curves[dragInfo.level][dragInfo.index].x = clampedX;
+                    curves[dragInfo.level][dragInfo.index].y = clampedY;
+                    
+                    if (isThrottle) {
+                        updateThrottleChart();
+                    } else {
+                        updatePedalChart();
+                    }
+                } else {
+                    // 檢查滑鼠是否懸停在控制點上
+                    const points = Chart.helpers.getRelativePosition(e, chart);
+                    const dataX = chart.scales.x.getValueForPixel(points.x);
+                    const dataY = chart.scales.y.getValueForPixel(points.y);
+                    
+                    let isOverPoint = false;
+                    Object.keys(curves).forEach(level => {
+                        curves[level].forEach((point, index) => {
+                            let checkX = point.x;
+                            let checkY = point.y;
+                            
+                            // 如果是Throttle，需要考慮乘數對Y值的影響
+                            if (isThrottle && window.throttleLevelMultipliers) {
+                                checkY = point.y * window.throttleLevelMultipliers[level] / 100;
+                            }
+                            
+                            const distance = Math.sqrt(
+                                Math.pow(dataX - checkX, 2) + Math.pow(dataY - checkY, 2)
+                            );
+                            if (distance < (isThrottle ? 8 : 20)) {
+                                isOverPoint = true;
+                            }
+                        });
+                    });
+                    
+                    chart.canvas.style.cursor = isOverPoint ? 'grab' : 'default';
+                }
+            });
+            
+            chart.canvas.addEventListener('mouseup', () => {
+                isDragging = false;
+                dragInfo = null;
+                chart.canvas.style.cursor = 'default';
+            });
+        }
+        
+        // 移除所有Apply功能
+        // function applyPedalToBike() { ... }
+        
+        // 初始化Pedal圖表
+        function initPedalChart() {
+            const ctx = document.getElementById('pedalChart').getContext('2d');
+            pedalChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Pedal Input Power (W)',
+                                font: { size: 14, weight: 'bold' },
+                                color: '#333'
+                            },
+                            min: 0,
+                            max: 400,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Motor Output Power (W)',
+                                font: { size: 14, weight: 'bold' },
+                                color: '#333'
+                            },
+                            min: 0,
+                            max: 800,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Pedal Assist - Pedal Power vs Motor Output',
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                filter: function(item) {
+                                    return !item.text.includes('_point_');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return !tooltipItem.dataset.label.includes('_point_');
+                            }
+                        }
+                    }
+                }
+            });
+            
+            setupDragHandlers(pedalChart, pedalCurves, false);
+        }
+        
+        // 初始化Throttle圖表
+        function initThrottleChart() {
+            const ctx = document.getElementById('throttleChart').getContext('2d');
+            throttleChart = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'nearest'
+                    },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            position: 'bottom',
+                            title: {
+                                display: true,
+                                text: 'Raw Throttle Position (%)',
+                                font: { size: 14, weight: 'bold' },
+                                color: '#333'
+                            },
+                            min: 0,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Processed Throttle Position (%)',
+                                font: { size: 14, weight: 'bold' },
+                                color: '#333'
+                            },
+                            min: 0,
+                            max: 110,  // 改為110%讓圖表更好看
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Throttle Progressive Assist',
+                            font: { size: 16, weight: 'bold' },
+                            color: '#333'
+                        },
+                        legend: {
+                            display: true,
+                            position: 'bottom',
+                            labels: {
+                                filter: function(item) {
+                                    return !item.text.includes('_point_');
+                                }
+                            }
+                        },
+                        tooltip: {
+                            filter: function(tooltipItem) {
+                                return !tooltipItem.dataset.label.includes('_point_');
+                            }
+                        }
+                    }
+                }
+            });
+            
+            setupDragHandlers(throttleChart, throttleCurves, true);
+        }
+        
+        // 頁面載入完成後初始化
+        window.onload = function() {
+            // 初始化throttleLevelMultipliers到全域作用域 - 倒過來：Level1=50%, Level2=75%, Level3=100%
+            window.throttleLevelMultipliers = {
+                level1: 50,   // Level 1 乘數 50%
+                level2: 75,   // Level 2 乘數 75%
+                level3: 100   // Level 3 乘數 100%
+            };
+            
+            initPedalChart();
+            initThrottleChart();
+            
+            // 預設顯示Pedal頁面
+            updatePedalChart();
+        };
+    </script>
+</body>
+</html>
